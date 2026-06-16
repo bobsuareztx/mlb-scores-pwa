@@ -14,7 +14,7 @@ A small mobile-first MLB scoreboard that shows games for a selected date in US C
 ## Local Preview
 
 ```bash
-node server.mjs
+python3 -m http.server 4173
 ```
 
 Then open `http://localhost:4173`.
