@@ -333,6 +333,8 @@ const DIVISION_LABELS = new Map([
   [205, "National League Central"],
 ]);
 
+const DIVISION_DISPLAY_ORDER = ["AL East", "AL Central", "AL West", "NL East", "NL Central", "NL West"];
+
 const DIVISION_BY_TEAM = new Map([
   ["Yankees", "American League East"],
   ["Blue Jays", "American League East"],
@@ -410,7 +412,7 @@ function renderStandings(records) {
 
   const sortedRecords = [...records].sort((a, b) => divisionSortValue(a) - divisionSortValue(b));
 
-  for (const record of sortedRecords) {
+  for (const [index, record] of sortedRecords.entries()) {
     const card = document.createElement("article");
     const heading = document.createElement("h2");
     const table = document.createElement("table");
@@ -418,7 +420,7 @@ function renderStandings(records) {
     const tbody = document.createElement("tbody");
 
     card.className = "standings-card";
-    heading.textContent = divisionDisplayTitle(record);
+    heading.textContent = DIVISION_DISPLAY_ORDER[index] || divisionDisplayTitle(record);
     table.className = "standings-table";
     thead.innerHTML = "<tr><th>Team</th><th>W</th><th>L</th><th>Pct</th><th>GB</th><th>L10</th><th>Strk</th></tr>";
 
