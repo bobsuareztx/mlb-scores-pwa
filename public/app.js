@@ -372,8 +372,9 @@ function divisionTitle(record) {
   const firstTeam = record.teamRecords?.[0]?.team?.teamName || "";
 
   if (DIVISION_LABELS.has(id)) return DIVISION_LABELS.get(id);
-  if (apiName && apiName !== "Division") return apiName;
-  return DIVISION_BY_TEAM.get(firstTeam) || "Division";
+  if (DIVISION_BY_TEAM.has(firstTeam)) return DIVISION_BY_TEAM.get(firstTeam);
+  if (apiName && apiName.toLowerCase() !== "division") return apiName;
+  return "Division";
 }
 
 function divisionSortValue(record) {
