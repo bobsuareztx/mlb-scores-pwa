@@ -1,4 +1,5 @@
-const API_BASE = "https://statsapi.mlb.com/api/v1/schedule";
+const SCHEDULE_API = "https://statsapi.mlb.com/api/v1/schedule";
+const STANDINGS_API = "https://statsapi.mlb.com/api/v1/standings";
 const CENTRAL_TIME_ZONE = "America/Chicago";
 const REFRESH_MS = 30000;
 
@@ -11,13 +12,23 @@ const els = {
   refreshButton: document.querySelector("#refreshButton"),
   refreshLabel: document.querySelector("#refreshLabel"),
   scoreboard: document.querySelector("#scoreboard"),
+  scoresPanel: document.querySelector("#scoresPanel"),
+  scoresTab: document.querySelector("#scoresTab"),
+  standingsBoard: document.querySelector("#standingsBoard"),
+  standingsLabel: document.querySelector("#standingsLabel"),
+  standingsPanel: document.querySelector("#standingsPanel"),
+  standingsPill: document.querySelector("#standingsPill"),
+  standingsTab: document.querySelector("#standingsTab"),
   template: document.querySelector("#gameTemplate"),
 };
 
+let activeView = "scores";
 let refreshTimer;
-let abortController;
+let scoresAbortController;
+let standingsAbortController;
+let standingsLoaded = false;
 
-const formatter = new Intl.DateTimeFormat("en-US", {
+const dateFormatter = new Intl.DateTimeFormat("en-US", {
   weekday: "short",
   month: "short",
   day: "numeric",
@@ -48,11 +59,15 @@ function addDays(value, days) {
 }
 
 function prettyDate(value) {
-  return formatter.format(dateFromValue(value));
+  return dateFormatter.format(dateFromValue(value));
 }
 
 function isToday(value) {
   return value === centralToday();
+}
+
+function seasonForToday() {
+  return centralToday().slice(0, 4);
 }
 
 function statusGroup(game) {
@@ -128,6 +143,55 @@ function teamScore(teamSide, game) {
   return statusGroup(game) === "Upcoming" ? "-" : "0";
 }
 
+function personName(person) {
+  return person?.fullName || person?.name || "";
+}
+
+function pitcherRows(game) {
+  const group = statusGroup(game);
+  const awayProbable = personName(game.teams?.away?.probablePitcher);
+  const homeProbable = personName(game.teams?.home?.probablePitcher);
+
+  if (group === "Upcoming") {
+    if (!awayProbable && !homeProbable) return [["Probables", "TBD"]];
+    return [
+      [`${teamAbbr(game.teams?.away)} SP`, awayProbable || "TBD"],
+      [`${teamAbbr(game.teams?.home)} SP`, homeProbable || "TBD"],
+    ];
+  }
+
+  if (group === "Live") {
+    const pitcher = personName(game.linescore?.defense?.pitcher);
+    const batter = personName(game.linescore?.offense?.batter);
+    return [
+      pitcher ? ["Pitching", pitcher] : null,
+      batter ? ["At bat", batter] : null,
+    ].filter(Boolean);
+  }
+
+  return [
+    personName(game.decisions?.winner) ? ["W", personName(game.decisions.winner)] : null,
+    personName(game.decisions?.loser) ? ["L", personName(game.decisions.loser)] : null,
+    personName(game.decisions?.save) ? ["S", personName(game.decisions.save)] : null,
+  ].filter(Boolean);
+}
+
+function renderPitchers(container, game) {
+  container.replaceChildren();
+
+  for (const [label, value] of pitcherRows(game)) {
+    const row = document.createElement("div");
+    const rowLabel = document.createElement("span");
+    const rowValue = document.createElement("span");
+
+    row.className = "pitcher-row";
+    rowLabel.textContent = label;
+    rowValue.textContent = value;
+    row.append(rowLabel, rowValue);
+    container.append(row);
+  }
+}
+
 function renderGame(game) {
   const card = els.template.content.firstElementChild.cloneNode(true);
   const group = statusGroup(game);
@@ -144,6 +208,7 @@ function renderGame(game) {
   card.querySelector(".home .abbr").textContent = teamAbbr(home);
   card.querySelector(".home .name").textContent = teamName(home);
   card.querySelector(".home .score").textContent = teamScore(home, game);
+  renderPitchers(card.querySelector(".pitchers"), game);
   card.querySelector(".inning").textContent = inningText(game);
   card.querySelector(".detail").textContent = gameDetail(game);
 
@@ -169,7 +234,7 @@ function renderError(message) {
 }
 
 function renderGames(games, dateValue) {
-  els.scoreboard.innerHTML = "";
+  els.scoreboard.replaceChildren();
 
   if (!games.length) {
     renderEmpty(dateValue);
@@ -183,9 +248,13 @@ function renderGames(games, dateValue) {
     if (!groupGames.length) continue;
 
     const section = document.createElement("section");
+    const title = document.createElement("h2");
+
     section.className = "group";
     section.setAttribute("aria-label", `${groupName} games`);
-    section.innerHTML = `<h2 class="group-title">${groupName}</h2>`;
+    title.className = "group-title";
+    title.textContent = groupName;
+    section.append(title);
     groupGames.forEach((game) => section.append(renderGame(game)));
     els.scoreboard.append(section);
   }
@@ -215,20 +284,20 @@ function setRefreshState(games, dateValue) {
 async function loadScores() {
   const dateValue = els.dateInput.value;
   clearTimeout(refreshTimer);
-  abortController?.abort();
-  abortController = new AbortController();
+  scoresAbortController?.abort();
+  scoresAbortController = new AbortController();
 
   setLoading(dateValue);
 
   const params = new URLSearchParams({
     sportId: "1",
     date: dateValue,
-    hydrate: "linescore,team,venue",
+    hydrate: "linescore,team,venue,probablePitcher,decisions",
   });
 
   try {
-    const response = await fetch(`${API_BASE}?${params}`, {
-      signal: abortController.signal,
+    const response = await fetch(`${SCHEDULE_API}?${params}`, {
+      signal: scoresAbortController.signal,
     });
 
     if (!response.ok) throw new Error(`MLB returned HTTP ${response.status}.`);
@@ -239,7 +308,7 @@ async function loadScores() {
     renderGames(games, dateValue);
     setRefreshState(games, dateValue);
 
-    if (isToday(dateValue)) {
+    if (isToday(dateValue) && activeView === "scores") {
       refreshTimer = window.setTimeout(loadScores, REFRESH_MS);
     }
   } catch (error) {
@@ -255,13 +324,163 @@ function setDate(value) {
   loadScores();
 }
 
-els.refreshButton.addEventListener("click", loadScores);
+function divisionSortValue(record) {
+  const league = record.league?.name || "";
+  const division = record.division?.name || "";
+  const leagueRank = league.includes("American") ? 0 : 1;
+  const divisionRank = division.includes("East") ? 0 : division.includes("Central") ? 1 : 2;
+  return leagueRank * 10 + divisionRank;
+}
+
+function splitRecord(teamRecord, type) {
+  const split = teamRecord.records?.splitRecords?.find((item) => item.type === type);
+  return split ? `${split.wins}-${split.losses}` : "-";
+}
+
+function renderStandings(records) {
+  els.standingsBoard.replaceChildren();
+
+  if (!records.length) {
+    els.standingsBoard.innerHTML = `
+      <section class="standings-empty">
+        <strong>No standings found</strong>
+        <p>MLB did not return current standings.</p>
+      </section>
+    `;
+    return;
+  }
+
+  const sortedRecords = [...records].sort((a, b) => divisionSortValue(a) - divisionSortValue(b));
+
+  for (const record of sortedRecords) {
+    const card = document.createElement("article");
+    const heading = document.createElement("h2");
+    const table = document.createElement("table");
+    const thead = document.createElement("thead");
+    const tbody = document.createElement("tbody");
+
+    card.className = "standings-card";
+    heading.textContent = record.division?.name || "Division";
+    table.className = "standings-table";
+    thead.innerHTML = "<tr><th>Team</th><th>W</th><th>L</th><th>Pct</th><th>GB</th><th>L10</th><th>Strk</th></tr>";
+
+    for (const teamRecord of record.teamRecords || []) {
+      const row = document.createElement("tr");
+      const values = [
+        teamRecord.team?.teamName || teamRecord.team?.name || "Team",
+        teamRecord.leagueRecord?.wins ?? "-",
+        teamRecord.leagueRecord?.losses ?? "-",
+        teamRecord.leagueRecord?.pct || "-",
+        teamRecord.gamesBack || "-",
+        splitRecord(teamRecord, "lastTen"),
+        teamRecord.streak?.streakCode || "-",
+      ];
+
+      for (const value of values) {
+        const cell = document.createElement("td");
+        cell.textContent = String(value);
+        row.append(cell);
+      }
+
+      tbody.append(row);
+    }
+
+    table.append(thead, tbody);
+    card.append(heading, table);
+    els.standingsBoard.append(card);
+  }
+}
+
+function renderStandingsError(message) {
+  els.standingsBoard.innerHTML = `
+    <section class="standings-empty">
+      <strong>Standings did not load</strong>
+      <p>${message}</p>
+    </section>
+  `;
+}
+
+function setStandingsLoading() {
+  els.standingsLabel.textContent = "Fetching current divisions...";
+  els.standingsPill.textContent = seasonForToday();
+}
+
+function setStandingsReady() {
+  const now = new Intl.DateTimeFormat("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: CENTRAL_TIME_ZONE,
+  }).format(new Date());
+
+  els.standingsLabel.textContent = `Updated ${now} CT`;
+  els.standingsPill.textContent = seasonForToday();
+}
+
+async function loadStandings({ force = false } = {}) {
+  if (standingsLoaded && !force) return;
+
+  standingsAbortController?.abort();
+  standingsAbortController = new AbortController();
+  setStandingsLoading();
+
+  const params = new URLSearchParams({
+    leagueId: "103,104",
+    season: seasonForToday(),
+    standingsTypes: "regularSeason",
+  });
+
+  try {
+    const response = await fetch(`${STANDINGS_API}?${params}`, {
+      signal: standingsAbortController.signal,
+    });
+
+    if (!response.ok) throw new Error(`MLB returned HTTP ${response.status}.`);
+
+    const data = await response.json();
+    renderStandings(data.records || []);
+    setStandingsReady();
+    standingsLoaded = true;
+  } catch (error) {
+    if (error.name === "AbortError") return;
+    renderStandingsError(`${error.message} Try refresh again.`);
+    els.standingsLabel.textContent = "Update failed";
+  }
+}
+
+function setActiveView(view) {
+  activeView = view;
+  const scoresActive = view === "scores";
+
+  els.scoresPanel.classList.toggle("active", scoresActive);
+  els.standingsPanel.classList.toggle("active", !scoresActive);
+  els.scoresTab.classList.toggle("active", scoresActive);
+  els.standingsTab.classList.toggle("active", !scoresActive);
+  els.scoresTab.setAttribute("aria-selected", String(scoresActive));
+  els.standingsTab.setAttribute("aria-selected", String(!scoresActive));
+  clearTimeout(refreshTimer);
+
+  if (scoresActive) {
+    if (isToday(els.dateInput.value)) refreshTimer = window.setTimeout(loadScores, REFRESH_MS);
+  } else {
+    loadStandings();
+  }
+}
+
+els.refreshButton.addEventListener("click", () => {
+  if (activeView === "scores") {
+    loadScores();
+  } else {
+    loadStandings({ force: true });
+  }
+});
 els.dateInput.addEventListener("change", loadScores);
 els.prevDay.addEventListener("click", () => setDate(addDays(els.dateInput.value, -1)));
 els.nextDay.addEventListener("click", () => setDate(addDays(els.dateInput.value, 1)));
+els.scoresTab.addEventListener("click", () => setActiveView("scores"));
+els.standingsTab.addEventListener("click", () => setActiveView("standings"));
 
 window.addEventListener("focus", () => {
-  if (isToday(els.dateInput.value)) loadScores();
+  if (activeView === "scores" && isToday(els.dateInput.value)) loadScores();
 });
 
 if ("serviceWorker" in navigator) {

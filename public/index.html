@@ -16,7 +16,7 @@
     <main class="shell">
       <header class="topbar">
         <div>
-          <p class="eyebrow">Central Time scoreboard</p>
+          <p class="eyebrow">Central Time baseball</p>
           <h1>MLB Scores</h1>
         </div>
         <button class="icon-button" id="refreshButton" type="button" aria-label="Refresh scores" title="Refresh scores">
@@ -27,28 +27,51 @@
         </button>
       </header>
 
-      <section class="controls" aria-label="Score controls">
-        <button id="prevDay" type="button" aria-label="Previous day">
-          <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6" /></svg>
+      <section class="tabs" aria-label="App views">
+        <button class="tab active" id="scoresTab" type="button" aria-controls="scoresPanel" aria-selected="true">
+          Scores
         </button>
-        <label class="date-field">
-          <span>Date</span>
-          <input id="dateInput" type="date" />
-        </label>
-        <button id="nextDay" type="button" aria-label="Next day">
-          <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6" /></svg>
+        <button class="tab" id="standingsTab" type="button" aria-controls="standingsPanel" aria-selected="false">
+          Standings
         </button>
       </section>
 
-      <section class="status-strip" aria-live="polite">
-        <div>
-          <strong id="dateLabel">Loading</strong>
-          <span id="refreshLabel">Fetching games...</span>
-        </div>
-        <span class="pill" id="livePill">Live</span>
+      <section id="scoresPanel" class="view active">
+        <section class="controls" aria-label="Score controls">
+          <button id="prevDay" type="button" aria-label="Previous day">
+            <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6" /></svg>
+          </button>
+          <label class="date-field">
+            <span>Date</span>
+            <input id="dateInput" type="date" />
+          </label>
+          <button id="nextDay" type="button" aria-label="Next day">
+            <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6" /></svg>
+          </button>
+        </section>
+
+        <section class="status-strip" aria-live="polite">
+          <div>
+            <strong id="dateLabel">Loading</strong>
+            <span id="refreshLabel">Fetching games...</span>
+          </div>
+          <span class="pill" id="livePill">Live</span>
+        </section>
+
+        <section id="scoreboard" class="scoreboard" aria-live="polite"></section>
       </section>
 
-      <section id="scoreboard" class="scoreboard" aria-live="polite"></section>
+      <section id="standingsPanel" class="view">
+        <section class="status-strip" aria-live="polite">
+          <div>
+            <strong>Standings</strong>
+            <span id="standingsLabel">Fetching current divisions...</span>
+          </div>
+          <span class="pill" id="standingsPill">MLB</span>
+        </section>
+
+        <section id="standingsBoard" class="standings-board" aria-live="polite"></section>
+      </section>
     </main>
 
     <template id="gameTemplate">
@@ -69,6 +92,7 @@
             <strong class="score"></strong>
           </div>
         </div>
+        <div class="pitchers"></div>
         <div class="game-foot">
           <span class="inning"></span>
           <span class="detail"></span>
