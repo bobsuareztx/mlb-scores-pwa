@@ -324,12 +324,69 @@ function setDate(value) {
   loadScores();
 }
 
+const DIVISION_LABELS = new Map([
+  [200, "American League West"],
+  [201, "American League East"],
+  [202, "American League Central"],
+  [203, "National League West"],
+  [204, "National League East"],
+  [205, "National League Central"],
+]);
+
+const DIVISION_BY_TEAM = new Map([
+  ["Yankees", "American League East"],
+  ["Blue Jays", "American League East"],
+  ["Orioles", "American League East"],
+  ["Rays", "American League East"],
+  ["Red Sox", "American League East"],
+  ["White Sox", "American League Central"],
+  ["Guardians", "American League Central"],
+  ["Tigers", "American League Central"],
+  ["Royals", "American League Central"],
+  ["Twins", "American League Central"],
+  ["Angels", "American League West"],
+  ["Astros", "American League West"],
+  ["Athletics", "American League West"],
+  ["Mariners", "American League West"],
+  ["Rangers", "American League West"],
+  ["Braves", "National League East"],
+  ["Marlins", "National League East"],
+  ["Mets", "National League East"],
+  ["Nationals", "National League East"],
+  ["Phillies", "National League East"],
+  ["Brewers", "National League Central"],
+  ["Cardinals", "National League Central"],
+  ["Cubs", "National League Central"],
+  ["Pirates", "National League Central"],
+  ["Reds", "National League Central"],
+  ["D-backs", "National League West"],
+  ["Dodgers", "National League West"],
+  ["Giants", "National League West"],
+  ["Padres", "National League West"],
+  ["Rockies", "National League West"],
+]);
+
+function divisionTitle(record) {
+  const id = Number(record.division?.id);
+  const apiName = record.division?.name || "";
+  const firstTeam = record.teamRecords?.[0]?.team?.teamName || "";
+
+  if (DIVISION_LABELS.has(id)) return DIVISION_LABELS.get(id);
+  if (apiName && apiName !== "Division") return apiName;
+  return DIVISION_BY_TEAM.get(firstTeam) || "Division";
+}
+
 function divisionSortValue(record) {
-  const league = record.league?.name || "";
-  const division = record.division?.name || "";
-  const leagueRank = league.includes("American") ? 0 : 1;
-  const divisionRank = division.includes("East") ? 0 : division.includes("Central") ? 1 : 2;
+  const title = divisionTitle(record);
+  const leagueRank = title.includes("American") ? 0 : 1;
+  const divisionRank = title.includes("East") ? 0 : title.includes("Central") ? 1 : 2;
   return leagueRank * 10 + divisionRank;
+}
+
+function divisionDisplayTitle(record) {
+  return divisionTitle(record)
+    .replace("American League", "AL")
+    .replace("National League", "NL");
 }
 
 function splitRecord(teamRecord, type) {
@@ -360,7 +417,7 @@ function renderStandings(records) {
     const tbody = document.createElement("tbody");
 
     card.className = "standings-card";
-    heading.textContent = record.division?.name || "Division";
+    heading.textContent = divisionDisplayTitle(record);
     table.className = "standings-table";
     thead.innerHTML = "<tr><th>Team</th><th>W</th><th>L</th><th>Pct</th><th>GB</th><th>L10</th><th>Strk</th></tr>";
 
