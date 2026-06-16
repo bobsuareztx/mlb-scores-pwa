@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#10231c" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="MLB Scores" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <title>MLB Scores</title>
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="icon.svg" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Central Time scoreboard</p>
+          <h1>MLB Scores</h1>
+        </div>
+        <button class="icon-button" id="refreshButton" type="button" aria-label="Refresh scores" title="Refresh scores">
+          <svg aria-hidden="true" viewBox="0 0 24 24">
+            <path d="M20 12a8 8 0 1 1-2.34-5.66" />
+            <path d="M20 4v6h-6" />
+          </svg>
+        </button>
+      </header>
+
+      <section class="controls" aria-label="Score controls">
+        <button id="prevDay" type="button" aria-label="Previous day">
+          <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6" /></svg>
+        </button>
+        <label class="date-field">
+          <span>Date</span>
+          <input id="dateInput" type="date" />
+        </label>
+        <button id="nextDay" type="button" aria-label="Next day">
+          <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6" /></svg>
+        </button>
+      </section>
+
+      <section class="status-strip" aria-live="polite">
+        <div>
+          <strong id="dateLabel">Loading</strong>
+          <span id="refreshLabel">Fetching games...</span>
+        </div>
+        <span class="pill" id="livePill">Live</span>
+      </section>
+
+      <section id="scoreboard" class="scoreboard" aria-live="polite"></section>
+    </main>
+
+    <template id="gameTemplate">
+      <article class="game-card">
+        <div class="game-head">
+          <span class="badge"></span>
+          <span class="venue"></span>
+        </div>
+        <div class="matchup">
+          <div class="team away">
+            <span class="abbr"></span>
+            <span class="name"></span>
+            <strong class="score"></strong>
+          </div>
+          <div class="team home">
+            <span class="abbr"></span>
+            <span class="name"></span>
+            <strong class="score"></strong>
+          </div>
+        </div>
+        <div class="game-foot">
+          <span class="inning"></span>
+          <span class="detail"></span>
+        </div>
+      </article>
+    </template>
+
+    <script src="app.js" type="module"></script>
+  </body>
+</html>
